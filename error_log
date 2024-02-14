@@ -1,0 +1,22 @@
+[01-Mar-2022 07:14:21 UTC] PHP Warning:  require(/home/orderuae/public_html/vendor/composer/../lcobucci/jwt/compat/class-aliases.php): failed to open stream: No such file or directory in /home/orderuae/public_html/vendor/composer/autoload_real.php on line 78
+[01-Mar-2022 07:14:21 UTC] PHP Fatal error:  require(): Failed opening required '/home/orderuae/public_html/vendor/composer/../lcobucci/jwt/compat/class-aliases.php' (include_path='.:/opt/cpanel/ea-php74/root/usr/share/pear') in /home/orderuae/public_html/vendor/composer/autoload_real.php on line 78
+[02-Mar-2022 06:17:40 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Api\VendorProductController::edit_size() in /home/orderuae/public_html/app/Http/Controllers/Api/VendorProductController.php on line 339
+[02-Mar-2022 10:03:24 UTC] PHP Warning:  require(/home/orderuae/public_html/vendor/autoload.php): failed to open stream: No such file or directory in /home/orderuae/public_html/index.php on line 24
+[02-Mar-2022 10:03:25 UTC] PHP Fatal error:  require(): Failed opening required '/home/orderuae/public_html/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php74/root/usr/share/pear') in /home/orderuae/public_html/index.php on line 24
+[02-Mar-2022 10:08:12 UTC] PHP Fatal error:  Uncaught ErrorException: include(/home/orderuae/public_html/vendor/composer/../nunomaduro/collision/src/Provider.php): failed to open stream: No such file or directory in /home/orderuae/public_html/vendor/composer/ClassLoader.php:571
+Stack trace:
+#0 /home/orderuae/public_html/vendor/composer/ClassLoader.php(571): Illuminate\Foundation\Bootstrap\HandleExceptions->handleError(2, 'include(/home/o...', '/home/orderuae/...', 571, Array)
+#1 /home/orderuae/public_html/vendor/composer/ClassLoader.php(571): include()
+#2 /home/orderuae/public_html/vendor/composer/ClassLoader.php(428): Composer\Autoload\includeFile('/home/orderuae/...')
+#3 [internal function]: Composer\Autoload\ClassLoader->loadClass('NunoMaduro\\Coll...')
+#4 [internal function]: spl_autoload_call('NunoMaduro\\Coll...')
+#5 /home/orderuae/public_html/vendor/laravel/framework/src/Illuminate/Container/Container.php(803): ReflectionClass->__construct('NunoMaduro\\Coll...')
+#6 /home/orderuae/public_html/vendor/laravel/framework/src/Illuminate/Container/Conta in /home/orderuae/public_html/vendor/composer/ClassLoader.php on line 571
+[02-Mar-2022 10:08:12 UTC] PHP Fatal error:  Uncaught ErrorException: include(/home/orderuae/public_html/vendor/composer/../symfony/debug/Exception/FatalErrorException.php): failed to open stream: No such file or directory in /home/orderuae/public_html/vendor/composer/ClassLoader.php:571
+Stack trace:
+#0 /home/orderuae/public_html/vendor/composer/ClassLoader.php(571): Illuminate\Foundation\Bootstrap\HandleExceptions->handleError(2, 'include(/home/o...', '/home/orderuae/...', 571, Array)
+#1 /home/orderuae/public_html/vendor/composer/ClassLoader.php(571): include()
+#2 /home/orderuae/public_html/vendor/composer/ClassLoader.php(428): Composer\Autoload\includeFile('/home/orderuae/...')
+#3 [internal function]: Composer\Autoload\ClassLoader->loadClass('Symfony\\Compone...')
+#4 /home/orderuae/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(147): spl_autoload_call('Symfony\\Compone...')
+#5 /home/orderuae/public_html/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(134): Illuminate\Foun in /home/orderuae/public_html/vendor/composer/ClassLoader.php on line 571

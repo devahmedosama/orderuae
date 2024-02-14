@@ -1,0 +1,650 @@
+<?php
+
+namespace App\Http\Controllers\vendor;
+
+use App\Http\Controllers\admin_controller;
+use App\Http\Controllers\dashbaord_controller;
+use App\Http\Controllers\vendor_controller;
+use App\importProductsFile;
+use App\models\attachments_m;
+use App\models\category\category_m;
+use App\models\product\product_m;
+use App\models\product\product_translate_m;
+use App\models\product_addition\product_addition_m;
+use App\models\product_addition\product_addition_translate_m;
+use App\models\product_prices\product_price_m;
+use App\models\product_prices\product_prices_translate;
+use App\models\shop\shops_m;
+use Illuminate\Http\Request;
+use Redirect;
+use Validator;
+use Maatwebsite\Excel\Facades\Excel;
+
+
+
+class products extends vendor_controller
+{
+
+    public function __construct(){
+        parent::__construct();
+
+    }
+
+    #region admin
+
+
+
+    public function importProducts(Request $request, $shop_id)
+    {
+        $filenaeeee = $request->file('upload_file');
+
+        $data=$request->all();
+
+
+        $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
+        $objectFile = $reader->load($filenaeeee);
+
+         foreach ($objectFile->getActiveSheet()->getDrawingCollection() as $drawing) {
+           
+        }
+        return 1;
+        // $result = Excel::import(new importProductsFile($data,$objectFile),  $filenaeeee);
+
+
+        // return Redirect::to("vendor/shop/$shop_id/product")->with([
+        //     "msg" => "check your data "
+        // ])->send();
+
+    }
+
+    public function importProductsView(Request $request, $shop_id)
+    {
+
+        $this->data["shop_id"] = $shop_id;
+
+        $this->data["cat_list"] = category_m::get_all_cats(
+            " AND cat.cat_type='fascinate' AND cat.parent_id=0 "
+        );
+
+        $this->data["sub_cat_list"] = category_m::get_all_cats(
+            " AND cat.cat_type='fascinate' AND cat.parent_id > 0 "
+        );
+
+
+        return view("vendor_shop.subviews.product.import")->with($this->data);
+
+
+    }
+
+
+    public function save_shop_products(Request $request, $shop_id, $product_id = null)
+    {
+        return 22;
+        $this->data["product_data"] = "";
+        $this->data["shop_id"] = $shop_id;
+
+
+
+        $this->data["data_object_translate"] = collect([]);
+
+        $this->data["all_cats"] = category_m::get_all_cats(" AND cat.cat_type='food' AND cat.parent_id = 0 order by cat.cat_order ");
+        $img_id = 0;
+        if ($product_id != null) {
+            $this->data["product_data"] = product_m::get_product($product_id);
+            $this->data["product_data"]->product_img_obj = attachments_m::find($this->data["product_data"]->product_image_id);
+            $this->data["data_object_translate"] = product_translate_m::where("product_id", $product_id)->get();
+            $img_id = $this->data["product_data"]->product_image_id;
+        }
+
+        if ($request->method() == "POST") {
+
+            $input_request = $request->all();
+
+            $validator_value = [
+                "product_name" => $request->get("product_name"),
+                "cat_id" => $request->get("cat_id"),
+            ];
+            $validator_rule = [
+                "cat_id" => "required",
+                "product_name.0" => "required",
+            ];
+
+            $validator = Validator::make(
+                $validator_value, $validator_rule
+            );
+
+
+            if (count($validator->messages()) == 0) {
+
+                $request["product_image_id"] = $this->general_save_img(
+                    $request,
+                    $item_id = $product_id,
+                    "profile_img_file",
+                    $new_title = "",
+                    $new_alt = "",
+                    $upload_new_img_check = $request["profile_img_checkbox"],
+                    $upload_file_path = "/admins",
+                    $width = 0,
+                    $height = 0,
+                    $photo_id_for_edit = $img_id
+                );
+
+
+
+
+                // update
+                if ($product_id != null) {
+                    $check = product_m::find($product_id)->update($request->all());
+
+                    if ($check == true) {
+                        $this->data["msg"] = "<div class='alert alert-success'> Data Successfully Edit </div>";
+                    } else {
+                        $this->data["msg"] = "<div class='alert alert-danger'> Something Is Wrong !!!!</div>";
+                    }
+
+
+                } else {
+                    $request = $request->all();
+                    $request['shop_id']=$shop_id;
+                    $check = product_m::create($request);
+
+                    if (is_object($check)) {
+                        $this->data["msg"] = "<div class='alert alert-success'> Data Successfully Inserted </div>";
+
+
+                    } else {
+                        $this->data["msg"] = "<div class='alert alert-danger'> Something Is Wrong !!!!</div>";
+                    }
+
+                    $product_id = $check->product_id ;
+                }
+
+
+                // save pages_translate
+
+
+                foreach ($this->data["all_langs"] as $lang_key => $lang_item) {
+                    $inputs = array();
+                    $inputs["product_id"] = $product_id;
+                    $inputs["product_name"] = array_shift($input_request["product_name"]);
+                    $inputs["product_desc"] = array_shift($input_request["product_desc"]);
+                    $inputs["lang_id"] = $lang_item->lang_id;
+
+                    $current_row = $this->data["data_object_translate"]->filter(function ($value, $key) use ($lang_item) {
+                        if ($value->lang_id == $lang_item->lang_id) {
+                            return $value;
+                        }
+
+                    });
+
+
+                    // edit
+                    if (is_object($current_row->first())) {
+                        product_translate_m::where("product_trans_id", $current_row->first()->product_trans_id)->update($inputs);
+                    } else {
+                        product_translate_m::create($inputs);
+                    }
+
+
+                }
+
+
+                return Redirect::to("admin/shop/$shop_id/product/save/$product_id")->with([
+                    "msg" => $this->data["msg"]
+                ])->send();
+
+
+            }
+
+            else{
+                $this->data["errors"] = $validator->messages();
+            }
+        }
+
+        return view("vendor_shop.subviews.product.save")->with($this->data);
+
+    }
+
+
+
+    public function save_new_shop_products(Request $request, $shop_id, $product_id = null)
+    {
+        return 1;
+
+        $shop_object = shops_m::where('shop_id',$shop_id)->get()->first();
+        $cat_id  =  $shop_object->cat_id;
+
+        $this->data["product_data"] = "";
+        $this->data["shop_id"] = $shop_id;
+
+        $this->data["data_object_translate"] = collect([]);
+
+        $this->data["all_cats"] = category_m::get_all_cats(" AND cat.cat_type='food' AND cat.parent_id = $cat_id  order by cat.cat_order ");
+        $img_id = 0;
+
+        $this->data["currency_list"] = list_currency_old();
+
+
+        if ($product_id != null) {
+            $this->data["product_data"] = product_m::get_product($product_id);
+
+            abort_if((!is_object($this->data["product_data"])),404);
+
+            $this->data["product_data"]->product_img_obj = attachments_m::find($this->data["product_data"]->product_image_id);
+            $this->data["data_object_translate"] = product_translate_m::where("product_id", $product_id)->get();
+            $img_id = $this->data["product_data"]->product_image_id;
+
+            $get_prices = product_price_m::where("product_id",$product_id)->get()->all();
+            if(is_array($get_prices) && count($get_prices))
+            {
+                $this->data["prices"] = $get_prices;
+
+                $price_ids = convert_inside_obj_to_arr($get_prices,"price_id");
+                $this->data["prices_translate"] = product_prices_translate::whereIn("product_prices_id",$price_ids)->get();
+
+            }
+            else{
+                $this->data["prices"]               = [
+                    new product_price_m()
+                ];
+                $this->data["prices_translate"]     = collect([]);
+            }
+
+
+            $get_additions = product_addition_m::where("product_id",$product_id)->get()->all();
+            if(is_array($get_additions) && count($get_additions))
+            {
+                $this->data["additions"] = $get_additions;
+
+                $product_addition_ids = convert_inside_obj_to_arr($get_additions,"product_addition_id");
+                $this->data["additions_translate"] = product_addition_translate_m::whereIn("product_addition_id",$product_addition_ids)->get();
+
+            }
+            else{
+                $this->data["additions"] = [
+                    new product_addition_m()
+                ];
+                $this->data["additions_translate"] = collect([]);
+            }
+
+        }
+        else{
+
+            $this->data["prices"]               = [
+                new product_price_m()
+            ];
+            $this->data["prices_translate"]     = collect([]);
+
+
+            $this->data["additions"] = [
+                new product_addition_m()
+            ];
+            $this->data["additions_translate"] = collect([]);
+
+        }
+
+        if ($request->method() == "POST") {
+
+            $input_request = $request->all();
+
+
+            $validator_value = [
+                "product_name"              => $request->get("product_name"),
+                "cat_id"                    => $request->get("cat_id"),
+                "price_id"                  => $request->get("price_id"),
+                "product_price"             => $request->get("product_price"),
+                "product_size"              => $request->get("product_size"),
+                "product_addition_price"    => $request->get("product_addition_price"),
+                "product_addition_name"     => $request->get("product_addition_name"),
+                'profile_img_file'          => $request->file("profile_img_file"),
+            ];
+            $validator_rule = [
+                "cat_id"                        => "required",
+                "product_name.*"                => "required",
+                "price_id.*"                    => "required",
+                "product_price.*"               => "required|numeric|min:0|not_in:0",
+                "product_size.*"                => "required",
+                "profile_img_file"              => 'nullable|image|mimes:jpg,jpeg,bmp,png,gif',
+            ];
+
+            $validator = Validator::make(
+                $validator_value, $validator_rule,
+                [
+                    "cat_id.required"           => "القسم للمنتج مطلوب إدخالة",
+                    "product_name.*.required"   => "اسم المنتج مطلوب إدخالة",
+                    //"product_name.1.required"   => "اسم المنتج للغه الانجليزية مطلوب إدخالة",
+                    "price_id.*.required"       => "رقم السعر مطلوب إدخالة",
+                    "product_price.*.numeric"  => " السعر يجب ان يكون رقم فقط",
+                    "product_price.*.required"  => " السعر مطلوب إدخالة",
+                    "product_price.*.min"  => " السعر يجب ان يكون اكبر من 0",
+                    "product_price.*.not_in"  => " السعر يجب ان يكون اكبر من 0",
+                    "product_size.*.required"   => "اسم الحجم مطلوب إدخالة",
+                    //"product_size.1.required"   => " الحجم للغه الانجليزية مطلوب إدخالة",
+                    "product_addition_price.*.numeric"  => " سعر الإضافة يجب ان يكون رقم فقط",
+                    "product_addition_price.*.min"  => " سعر الإضافة يجب ان يكون اكبر من 0",
+                    "product_addition_price.*.not_in"  => " سعر الإضافة يجب ان يكون اكبر من 0",
+                    "profile_img_file.image"    => "صورة المنتج يجب ان تكون صورة فقط",
+                    "profile_img_file.mimes"    => "صورة المنتج يجب ان تكون صورة فقط",
+                ]
+            );
+
+
+            if (count($validator->messages()) == 0) {
+
+                $request["product_image_id"] = $this->general_save_img(
+                    $request,
+                    $item_id = $product_id,
+                    "profile_img_file",
+                    $new_title = "",
+                    $new_alt = "",
+                    $upload_new_img_check = $request["profile_img_checkbox"],
+                    $upload_file_path = "/admins",
+                    $width = 0,
+                    $height = 0,
+                    $photo_id_for_edit = $img_id
+                );
+
+
+                // update
+                if ($product_id != null) {
+                    $check = product_m::find($product_id)->update($request->all());
+
+                    if ($check == true) {
+                        $this->data["msg"] = "<div class='alert alert-success'> Data Successfully Edit </div>";
+                    } else {
+                        $this->data["msg"] = "<div class='alert alert-danger'> Something Is Wrong !!!!</div>";
+                    }
+
+
+                } else {
+                    $request = $request->all();
+                    $request['shop_id']=$shop_id;
+                    $check = product_m::create($request);
+
+                    if (is_object($check)) {
+                        $this->data["msg"] = "<div class='alert alert-success'> Data Successfully Inserted </div>";
+
+
+                    } else {
+                        $this->data["msg"] = "<div class='alert alert-danger'> Something Is Wrong !!!!</div>";
+                    }
+
+                    $product_id = $check->product_id ;
+                }
+
+
+                // save pages_translate
+
+
+                foreach ($this->data["all_langs"] as $lang_key => $lang_item) {
+                    $inputs = array();
+                    $inputs["product_id"] = $product_id;
+                    $inputs["product_name"] = array_shift($input_request["product_name"]);
+                    $inputs["product_desc"] = array_shift($input_request["product_desc"]);
+                    $inputs["lang_id"] = $lang_item->lang_id;
+
+                    $current_row = $this->data["data_object_translate"]->filter(function ($value, $key) use ($lang_item) {
+                        if ($value->lang_id == $lang_item->lang_id) {
+                            return $value;
+                        }
+
+                    });
+
+
+                    // edit
+                    if (is_object($current_row->first())) {
+                        product_translate_m::where("product_trans_id", $current_row->first()->product_trans_id)->update($inputs);
+                    } else {
+                        product_translate_m::create($inputs);
+                    }
+
+
+                }
+
+
+                $all_langs = $this->data["all_langs"];
+
+                #region save prices
+
+                    $price_ids       = $request['price_id'];
+                    $product_prices  = $request['product_price'];
+                    $price_trans_ids = $request['price_trans_id'];
+                    $product_sizes   = $request['product_size'];
+                    $currencies      = $request['currency'];
+
+                    $trans_key = 0;
+                    foreach($price_ids as $key => $price_id)
+                    {
+                        // checks
+                        if(!isset($product_prices[$key]) || $product_prices[$key] == 0)
+                        {
+                            continue;
+                        }
+
+                        if($price_id == 0)
+                        {
+                            // add
+                            $new_price = product_price_m::create([
+                                "product_id"    => $product_id,
+                                "product_price" => $product_prices[$key],
+                            ]);
+
+                            $price_id = $new_price->price_id;
+
+                        }
+                        else{
+                            // edit
+                            product_price_m::where("price_id",$price_id)->update([
+                                "product_price" => $product_prices[$key],
+                            ]);
+
+                        }
+
+
+                        $delete_price = false;
+
+                        for ($ind = 0; $ind < count($all_langs); $ind ++)
+                        {
+
+                            if(!isset($price_trans_ids[($trans_key + $ind)]) || !isset($product_sizes[($trans_key + $ind)]) || !isset($currencies[($trans_key + $ind)]))
+                            {
+                                continue;
+                            }
+
+                            $price_trans_id = $price_trans_ids[($trans_key + $ind)];
+                            $price_trans_id = intval($price_trans_id);
+                            if($price_trans_id == 0)
+                            {
+
+                                if(empty($product_sizes[($trans_key + $ind)]))
+                                {
+                                    $delete_price = true;
+                                    break;
+                                }
+
+                                // add
+                                product_prices_translate::create([
+                                    'product_size'          => $product_sizes[($trans_key + $ind)],
+                                    'currency'              => $currencies[($trans_key + $ind)],
+                                    'product_prices_id'     => $price_id,
+                                    'lang_id'               => $all_langs[$ind]->lang_id,
+                                ]);
+                            }
+                            else{
+
+                                if(empty($product_sizes[($trans_key + $ind)]))
+                                {
+                                    continue;
+                                }
+
+                                // edit
+                                product_prices_translate::find($price_trans_id)->update([
+                                    'product_size'          => $product_sizes[($trans_key + $ind)],
+                                    'currency'              => $currencies[($trans_key + $ind)],
+                                ]);
+                            }
+
+                        }
+
+                        if($delete_price)
+                        {
+                            product_price_m::find($price_id)->delete();
+                        }
+
+                        $trans_key += count($all_langs);
+
+                    }
+
+                #endregion
+
+
+                #region save additions
+
+                    $product_addition_ids       = $request['product_addition_id'];
+                    $product_addition_prices    = $request['product_addition_price'];
+                    $pa_trans_ids               = $request['pa_trans_id'];
+                    $product_addition_names     = $request['product_addition_name'];
+                    $addition_currencies        = $request['addition_currency'];
+
+                    $trans_key = 0;
+                    foreach($product_addition_ids as $key => $product_addition_id)
+                    {
+                        // checks
+                        if(!isset($product_addition_prices[$key]))
+                        {
+                            continue;
+                        }
+
+                        if($product_addition_id == 0)
+                        {
+                            // add
+                            $new_obj = product_addition_m::create([
+                                "product_id"                => $product_id,
+                                "product_addition_price"    => $product_addition_prices[$key],
+                            ]);
+
+                            $product_addition_id = $new_obj->product_addition_id;
+
+                        }
+                        else{
+                            // edit
+                            product_addition_m::where("product_addition_id",$product_addition_id)->update([
+                                "product_addition_price"    => $product_addition_prices[$key],
+                            ]);
+
+                        }
+
+
+                        $delete_addition = false;
+
+                        for ($ind = 0; $ind < count($all_langs); $ind ++)
+                        {
+
+                            if(!isset($pa_trans_ids[($trans_key + $ind)]) || !isset($product_addition_names[($trans_key + $ind)]) || !isset($addition_currencies[($trans_key + $ind)]))
+                            {
+                                continue;
+                            }
+
+                            $pa_trans_id = $pa_trans_ids[($trans_key + $ind)];
+                            $pa_trans_id = intval($pa_trans_id);
+                            if($pa_trans_id == 0)
+                            {
+                                // add
+
+                                if(empty($product_addition_names[($trans_key + $ind)]))
+                                {
+                                    $delete_addition = true;
+                                    break;
+                                }
+
+                                product_addition_translate_m::create([
+                                    'product_addition_name' => $product_addition_names[($trans_key + $ind)],
+                                    'addition_currency'     => $addition_currencies[($trans_key + $ind)],
+                                    'product_addition_id'   => $product_addition_id,
+                                    'lang_id'               => $all_langs[$ind]->lang_id,
+                                ]);
+                            }
+                            else{
+                                // edit
+
+                                if(empty($product_addition_names[($trans_key + $ind)]))
+                                {
+                                    continue;
+                                }
+
+                                product_addition_translate_m::find($pa_trans_id)->update([
+                                    'product_addition_name' => $product_addition_names[($trans_key + $ind)],
+                                    'addition_currency'     => $addition_currencies[($trans_key + $ind)],
+                                ]);
+                            }
+
+                        }
+
+                        if($delete_addition)
+                        {
+                            product_addition_m::find($product_addition_id)->delete();
+                        }
+
+                        $trans_key += count($all_langs);
+
+                    }
+
+                #endregion
+
+
+
+                return Redirect::to("vendor/shop/$shop_id/product/save_new/$product_id")->with([
+                    "msg" => $this->data["msg"]
+                ])->send();
+
+
+            }
+
+            else{
+                $this->data["errors"] = $validator->messages();
+            }
+        }
+
+        return view("vendor_shop.subviews.product.save_new")->with($this->data);
+
+    }
+
+
+    public function remove_step_item(Request $request)
+    {
+
+        $id             = $request->get('id',0);
+        $table          = $request->get('table',"");
+        $table_trans    = $request->get('table_trans',"");
+        $fk_field       = $request->get('fk_field',"");
+
+        $id = intval($id);
+
+        if($id > 0 && !empty($table) && !empty($table_trans))
+        {
+
+            $table::find($id)->delete();
+
+            $table_trans::where("$fk_field",$id)->delete();
+
+        }
+
+        return;
+
+    }
+
+
+    public function shop_list_product($shop_id)
+    {
+        $this->data["products"] = product_m::get_all_shop_products($shop_id);
+        $this->data["shop_id"] = $shop_id;
+
+        return view("vendor_shop.subviews.product.show",$this->data);
+    }
+
+
+    #endregion
+
+
+
+}

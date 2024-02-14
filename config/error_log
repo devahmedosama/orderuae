@@ -1,0 +1,8 @@
+[23-Feb-2022 13:44:52 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/orderuae/public_html/config/app.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/orderuae/public_html/config/app.php on line 16
+[23-Feb-2022 13:44:53 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home/orderuae/public_html/config/app.php:16
+Stack trace:
+#0 {main}
+  thrown in /home/orderuae/public_html/config/app.php on line 16
